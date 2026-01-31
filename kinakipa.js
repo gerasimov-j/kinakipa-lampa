@@ -5,59 +5,63 @@
 
     console.log('Kinakipa plugin loaded');
 
-    const SOURCE_ID = 'kinakipa';
-    const SOURCE_TITLE = 'Kinakipa';
+    const ACTIVITY_ID = 'kinakipa_activity';
 
-    function KinakipaSource() {}
+    function openActivity() {
+        Lampa.Activity.push({
+            id: ACTIVITY_ID,
+            title: 'Kinakipa',
+            component: 'content',
+            url: '',
+            page: 1,
+            type: 'movie',
+            source: {
+                get: function (params, callback) {
+                    callback({
+                        results: [
+                            {
+                                id: 464963,
+                                title: 'Тест Kinakipa',
+                                poster_path: '',
+                                backdrop_path: '',
+                                overview: 'Тестовый фильм',
+                                release_date: ''
+                            }
+                        ],
+                        page: 1,
+                        total_pages: 1
+                    });
+                }
+            },
+            onPlay: function (item) {
+                const url = Lampa.Utils.proxy(
+                    'https://kinakipa.site/player?id=' + item.id
+                );
 
-    KinakipaSource.prototype.search = function (query, callback) {
-        // временно — заглушка
-        callback([]);
-    };
+                fetch(url)
+                    .then(r => r.text())
+                    .then(html => {
+                        const m = html.match(/https?:\/\/[^"' ]+\.m3u8/);
+                        if (!m) throw 'no stream';
 
-    KinakipaSource.prototype.category = function (category, page, callback) {
-        // временно — тестовый фильм
-        callback([
-            {
-                id: 464963,
-                title: 'Тест Kinakipa',
-                poster: '',
-                type: 'movie'
+                        Lampa.Player.play({
+                            title: item.title,
+                            url: m[0]
+                        });
+                    });
             }
-        ]);
-    };
+        });
+    }
 
-    KinakipaSource.prototype.play = function (item) {
-        const url = Lampa.Utils.proxy(
-            'https://kinakipa.site/player?id=' + item.id
-        );
-
-        fetch(url)
-            .then(r => r.text())
-            .then(html => {
-                const match = html.match(/https?:\/\/[^"' ]+\.m3u8/);
-                if (!match) throw 'no m3u8';
-
-                Lampa.Player.play({
-                    title: item.title,
-                    url: match[0]
-                });
-            })
-            .catch(e => {
-                console.error(e);
-                Lampa.Noty.show('Kinakipa: ошибка воспроизведения');
-            });
-    };
-
-    // ✅ регистрация источника — ПРАВИЛЬНО
+    // ✅ корректная регистрация
     Lampa.Listener.follow('app', function (e) {
         if (e.type === 'ready') {
-            Lampa.Source.add({
-                id: SOURCE_ID,
-                title: SOURCE_TITLE,
-                source: KinakipaSource,
-                type: 'movie',
-                icon: 'movie'
+            // добавляем пункт в "Приложения"
+            Lampa.Apps.add({
+                id: 'kinakipa',
+                title: 'Kinakipa',
+                icon: 'movie',
+                onSelect: openActivity
             });
         }
     });
