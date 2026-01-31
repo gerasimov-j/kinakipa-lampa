@@ -3,39 +3,45 @@
 
     if (!window.Lampa) return;
 
-    function getStreams(id) {
-        const url = 'https://kinakipa.site/player?id=' + id;
+    console.log('Kinakipa plugin loaded');
 
-        return fetch(url)
+    const PLUGIN_NAME = 'Kinakipa';
+
+    function playTest() {
+        const id = 464963;
+        const title = 'Kinakipa — тест';
+
+        const url = Lampa.Utils.proxy(
+            'https://kinakipa.site/player?id=' + id
+        );
+
+        fetch(url)
             .then(r => r.text())
             .then(html => {
                 const matches = [...html.matchAll(/https?:\/\/[^"' ]+\.m3u8/g)];
-                if (!matches.length) throw 'no m3u8';
+                if (!matches.length) throw 'm3u8 not found';
 
-                // уникальные
-                return [...new Set(matches.map(m => m[0]))];
-            });
-    }
-
-    function play(id, title) {
-        getStreams(id)
-            .then(list => {
-                // пока просто первый
                 Lampa.Player.play({
-                    title: title || 'Kinakipa',
-                    url: list[0]
+                    title: title,
+                    url: matches[0][0]
                 });
             })
             .catch(e => {
                 console.error(e);
-                Lampa.Noty.show('Kinakipa: поток не найден');
+                Lampa.Noty.show('Kinakipa: ошибка воспроизведения');
             });
     }
 
-    // тест
-    Lampa.Storage.listener.follow('app', e => {
+    // ✅ добавляем пункт в главное меню
+    Lampa.Listener.follow('app', function (e) {
         if (e.type === 'ready') {
-            play(464963, 'Тест Kinakipa');
+
+            Lampa.Menu.add({
+                id: 'kinakipa',
+                title: PLUGIN_NAME,
+                icon: 'movie',
+                onSelect: playTest
+            });
         }
     });
 
