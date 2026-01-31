@@ -3,67 +3,100 @@
 
     if (!window.Lampa) return;
 
-    console.log('Kinakipa plugin loaded');
+    var TEST_MOVIE_ID = 328;
+    var TEST_MOVIE_URL = 'https://kinakipa.site/movie?id=' + TEST_MOVIE_ID;
 
-    const ACTIVITY_ID = 'kinakipa_activity';
+    /**
+     * Компонент Kinakipa
+     */
+    function kinakipa(object) {
 
-    function openActivity() {
-        Lampa.Activity.push({
-            id: ACTIVITY_ID,
-            title: 'Kinakipa',
-            component: 'content',
-            url: '',
-            page: 1,
-            type: 'movie',
-            source: {
-                get: function (params, callback) {
-                    callback({
-                        results: [
-                            {
-                                id: 464963,
-                                title: 'Тест Kinakipa',
-                                poster_path: '',
-                                backdrop_path: '',
-                                overview: 'Тестовый фильм',
-                                release_date: ''
-                            }
-                        ],
-                        page: 1,
-                        total_pages: 1
-                    });
+        this.create = function () {
+            this.activity.loader(true);
+
+            loadPlayer(TEST_MOVIE_ID, function (stream_url) {
+                this.activity.loader(false);
+
+                if (!stream_url) {
+                    Lampa.Noty.show('Kinakipa: не удалось получить видео');
+                    return;
                 }
-            },
-            onPlay: function (item) {
-                const url = Lampa.Utils.proxy(
-                    'https://kinakipa.site/player?id=' + item.id
-                );
 
-                fetch(url)
-                    .then(r => r.text())
-                    .then(html => {
-                        const m = html.match(/https?:\/\/[^"' ]+\.m3u8/);
-                        if (!m) throw 'no stream';
+                Lampa.Player.play({
+                    title: 'Kinakipa test',
+                    url: stream_url
+                });
 
-                        Lampa.Player.play({
-                            title: item.title,
-                            url: m[0]
-                        });
-                    });
+            }.bind(this));
+
+            return $('<div></div>');
+        };
+
+        this.start = function () {
+            Lampa.Controller.toggle('player');
+        };
+    }
+
+    /**
+     * Загрузка iframe-плеера и вытаскивание m3u8
+     */
+    function loadPlayer(id, callback) {
+        var url = 'https://kinakipa.site/player?id=' + id;
+
+        $.get(url, function (html) {
+            try {
+                var doc = document.createElement('div');
+                doc.innerHTML = html;
+
+                var source = doc.querySelector('source[type="application/vnd.apple.mpegURL"]');
+                if (source && source.src) {
+                    callback(source.src);
+                } else {
+                    callback(null);
+                }
+            } catch (e) {
+                console.error('Kinakipa parse error', e);
+                callback(null);
             }
+        }).fail(function () {
+            callback(null);
         });
     }
 
-    // ✅ корректная регистрация
-    Lampa.Listener.follow('app', function (e) {
-        if (e.type === 'ready') {
-            // добавляем пункт в "Приложения"
-            Lampa.Apps.add({
-                id: 'kinakipa',
+    /**
+     * Добавление кнопки в меню
+     */
+    function addMenu() {
+        var ico = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">' +
+            '<path d="M4 4h16v16H4z"/></svg>';
+
+        var item = $('<li class="menu__item selector" data-action="kinakipa">' +
+            '<div class="menu__ico">' + ico + '</div>' +
+            '<div class="menu__text">Kinakipa</div>' +
+        '</li>');
+
+        item.on('hover:enter', function () {
+            Lampa.Activity.push({
                 title: 'Kinakipa',
-                icon: 'movie',
-                onSelect: openActivity
+                component: 'kinakipa',
+                page: 1
             });
-        }
-    });
+        });
+
+        $('.menu .menu__list').eq(0).append(item);
+    }
+
+    /**
+     * Инициализация
+     */
+    Lampa.Component.add('kinakipa', kinakipa);
+
+    if (window.appready) {
+        addMenu();
+    } else {
+        Lampa.Listener.follow('app', function () {
+            addMenu();
+        });
+    }
 
 })();
