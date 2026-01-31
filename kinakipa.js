@@ -3,13 +3,13 @@
 
     if (!window.Lampa) return;
 
-    var TEST_MOVIE_ID = 328;
-    var TEST_MOVIE_URL = 'https://kinakipa.site/movie?id=' + TEST_MOVIE_ID;
+    var TEST_MOVIE_ID = 464963;
 
     /**
      * Компонент Kinakipa
      */
     function kinakipa(object) {
+        var html = $('<div></div>');
 
         this.create = function () {
             this.activity.loader(true);
@@ -18,18 +18,22 @@
                 this.activity.loader(false);
 
                 if (!stream_url) {
-                    Lampa.Noty.show('Kinakipa: не удалось получить видео');
+                    Lampa.Noty.show('Kinakipa: не удалось получить m3u8');
                     return;
                 }
 
                 Lampa.Player.play({
-                    title: 'Kinakipa test',
+                    title: 'Kinakipa test (464963)',
                     url: stream_url
                 });
 
             }.bind(this));
 
-            return $('<div></div>');
+            return this.render();
+        };
+
+        this.render = function () {
+            return html;
         };
 
         this.start = function () {
@@ -38,18 +42,21 @@
     }
 
     /**
-     * Загрузка iframe-плеера и вытаскивание m3u8
+     * Парсим /player?id=XXXX и вытаскиваем m3u8
      */
     function loadPlayer(id, callback) {
         var url = 'https://kinakipa.site/player?id=' + id;
 
         $.get(url, function (html) {
             try {
-                var doc = document.createElement('div');
-                doc.innerHTML = html;
+                var div = document.createElement('div');
+                div.innerHTML = html;
 
-                var source = doc.querySelector('source[type="application/vnd.apple.mpegURL"]');
-                if (source && source.src) {
+                var source = div.querySelector(
+                    'source[type="application/vnd.apple.mpegURL"]'
+                );
+
+                if (source && source.src && source.src.includes('.m3u8')) {
                     callback(source.src);
                 } else {
                     callback(null);
@@ -58,22 +65,27 @@
                 console.error('Kinakipa parse error', e);
                 callback(null);
             }
-        }).fail(function () {
+        }).fail(function (e) {
+            console.error('Kinakipa request failed', e);
             callback(null);
         });
     }
 
     /**
-     * Добавление кнопки в меню
+     * Кнопка в левом меню
      */
     function addMenu() {
-        var ico = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">' +
-            '<path d="M4 4h16v16H4z"/></svg>';
+        var ico =
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">' +
+            '<path d="M4 4h16v16H4z"/>' +
+            '</svg>';
 
-        var item = $('<li class="menu__item selector" data-action="kinakipa">' +
-            '<div class="menu__ico">' + ico + '</div>' +
-            '<div class="menu__text">Kinakipa</div>' +
-        '</li>');
+        var item = $(
+            '<li class="menu__item selector" data-action="kinakipa">' +
+                '<div class="menu__ico">' + ico + '</div>' +
+                '<div class="menu__text">Kinakipa</div>' +
+            '</li>'
+        );
 
         item.on('hover:enter', function () {
             Lampa.Activity.push({
@@ -94,9 +106,7 @@
     if (window.appready) {
         addMenu();
     } else {
-        Lampa.Listener.follow('app', function () {
-            addMenu();
-        });
+        Lampa.Listener.follow('app', addMenu);
     }
 
 })();
